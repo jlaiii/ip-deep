@@ -206,21 +206,39 @@
 
   /* ===== CORE LOOKUP ===== */
   async function lookupIP(ip) {
-    const errors = [];
+    const attempts = [];
     for (const p of PROVIDERS) {
+      const attempt = { id: p.id, label: p.label, status: 'pending', latency: null, reason: '' };
+      const start = performance.now();
       try {
         const url = p.lookupUrl(ip);
         const res = await fetchWithTimeout(url);
-        if (!res.ok) { errors.push(`${p.label}: HTTP ${res.status}`); continue; }
+        attempt.latency = Math.round(performance.now() - start);
+        if (!res.ok) {
+          attempt.status = 'failed';
+          attempt.reason = `HTTP ${res.status}`;
+          attempts.push(attempt);
+          continue;
+        }
         const json = await res.json();
-        if (!json || (json.status === 'error') || (json.success === false)) { errors.push(`${p.label}: invalid response`); continue; }
-        return { data: p.normalize(json), source: p.id, sourceLabel: p.label };
+        if (!json || json.status === 'error' || json.success === false) {
+          attempt.status = 'failed';
+          attempt.reason = 'bad response';
+          attempts.push(attempt);
+          continue;
+        }
+        attempt.status = 'used';
+        attempts.push(attempt);
+        return { data: p.normalize(json), source: p.id, sourceLabel: p.label, attempts };
       } catch (e) {
-        errors.push(`${p.label}: ${e.message || 'error'}`);
+        attempt.latency = Math.round(performance.now() - start);
+        attempt.status = 'failed';
+        attempt.reason = e.name === 'AbortError' ? 'timeout' : (e.message || 'error');
+        attempts.push(attempt);
         continue;
       }
     }
-    throw new Error('All IP lookup services failed.\n' + errors.join('\n'));
+    throw new Error('All IP lookup services failed.\n' + attempts.map(a => `${a.label}: ${a.reason}`).join('\n'));
   }
 
   async function detectOwnIP() {
@@ -242,6 +260,60 @@
       try { return await fn(); } catch { continue; }
     }
     throw new Error('Could not detect your IP address');
+  }
+
+  /* ===== RENDER SOURCES CHAIN ===== */
+  function renderSources(attempts, usedId) {
+    const container = $('sourcesBody');
+    const summary = $('sourcesSummary');
+    const failed = attempts.filter(a => a.status === 'failed');
+    const used = attempts.find(a => a.status === 'used');
+    let html = '<div class="sources-chain">';
+
+    attempts.forEach((a, i) => {
+      let icon, cls, label;
+      if (a.status === 'used') {
+        icon = 'fa-check-circle';
+        cls = 'source-used';
+        label = 'Used for this lookup';
+      } else if (a.status === 'failed') {
+        icon = 'fa-times-circle';
+        cls = 'source-failed';
+        label = a.reason ? `Failed: ${a.reason}` : 'Unavailable';
+      } else {
+        icon = 'fa-circle';
+        cls = 'source-pending';
+        label = 'Available (fallback)';
+      }
+      const lat = a.latency != null ? `<span class="source-latency">${a.latency}ms</span>` : '<span class="source-latency source-latency-na">—</span>';
+      html += `
+        <div class="source-item ${cls}">
+          <div class="source-status-icon"><i class="fas ${icon}"></i></div>
+          <div class="source-info">
+            <span class="source-name">${a.label}</span>
+            <span class="source-desc">${label}</span>
+          </div>
+          ${lat}
+        </div>`;
+      if (i < attempts.length - 1) {
+        html += '<div class="source-arrow"><i class="fas fa-arrow-down"></i></div>';
+      }
+    });
+
+    html += '</div>';
+
+    if (failed.length > 0 && used) {
+      summary.innerHTML = `<i class="fas fa-exclamation-triangle"></i> <strong>${failed[0].label}</strong> was unavailable (${failed[0].reason}). Auto-failed over to <strong>${used.label}</strong>.`;
+      summary.className = 'sources-summary sources-summary-warn';
+    } else if (failed.length > 0) {
+      summary.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${failed.length} source(s) unavailable. Using <strong>${used ? used.label : 'last available'}</strong>.`;
+      summary.className = 'sources-summary sources-summary-warn';
+    } else {
+      summary.innerHTML = `<i class="fas fa-check-circle"></i> All sources operational. Primary: <strong>${used ? used.label : attempts[0].label}</strong>`;
+      summary.className = 'sources-summary sources-summary-ok';
+    }
+
+    container.innerHTML = html;
   }
 
   /* ===== RENDER RESULTS ===== */
@@ -278,6 +350,10 @@
     }
 
     sourceName.textContent = result.sourceLabel;
+
+    if (result.attempts) {
+      renderSources(result.attempts, result.source);
+    }
 
     resultsSection.classList.add('visible');
     statusSection.classList.remove('visible');

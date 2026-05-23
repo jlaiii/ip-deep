@@ -246,6 +246,62 @@ body {
 }
 .info-mono { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.82rem; }
 
+/* ===== SOURCES CHAIN ===== */
+.sources-card { margin-bottom: 1.5rem; }
+.sources-card .card-header i { color: #667eea; }
+.sources-body { padding: 0.5rem 0 0.25rem; }
+.sources-chain { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; }
+.source-item {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  max-width: 460px;
+  padding: 0.7rem 1rem;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  transition: all 0.25s;
+}
+.source-item:hover { border-color: rgba(255,255,255,0.12); }
+.source-status-icon { flex-shrink: 0; width: 1.5rem; text-align: center; font-size: 1rem; }
+.source-used .source-status-icon i { color: #00cec9; }
+.source-failed .source-status-icon i { color: #ff6b6b; }
+.source-pending .source-status-icon i { color: rgba(255,255,255,0.2); font-size: 0.6rem; vertical-align: middle; }
+.source-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; }
+.source-name { font-size: 0.9rem; font-weight: 600; color: rgba(255,255,255,0.85); }
+.source-desc { font-size: 0.75rem; color: rgba(255,255,255,0.35); }
+.source-latency {
+  flex-shrink: 0;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.5);
+  padding: 0.2rem 0.55rem;
+  background: rgba(255,255,255,0.05);
+  border-radius: 6px;
+}
+.source-latency-na { color: rgba(255,255,255,0.2); }
+.source-used { border-color: rgba(0, 206, 201, 0.25); background: rgba(0, 206, 201, 0.04); }
+.source-used .source-latency { color: #00cec9; background: rgba(0, 206, 201, 0.1); }
+.source-failed { border-color: rgba(255, 107, 107, 0.2); background: rgba(255, 107, 107, 0.04); }
+.source-failed .source-latency { color: #ff6b6b; background: rgba(255, 107, 107, 0.1); }
+.source-arrow { color: rgba(255,255,255,0.12); font-size: 0.75rem; line-height: 1; padding: 0.15rem 0; }
+.sources-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.4);
+}
+.sources-summary strong { color: rgba(255,255,255,0.7); font-weight: 600; }
+.sources-summary-ok i { color: #00cec9; }
+.sources-summary-warn i { color: #fdcb6e; }
+.sources-summary-warn { color: rgba(253, 203, 110, 0.7); }
+
 /* ===== MAP ===== */
 .map-container {
   border-radius: 16px;
