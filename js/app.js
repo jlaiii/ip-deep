@@ -522,6 +522,17 @@
     });
   });
 
+  const sourcesToggle = $('sourcesToggle');
+  const sourcesCard = $('sourcesCard');
+  const sourcesToggleLabel = $('sourcesToggleLabel');
+  sourcesToggle.addEventListener('click', () => {
+    const expanded = sourcesToggle.getAttribute('aria-expanded') === 'true';
+    const next = !expanded;
+    sourcesToggle.setAttribute('aria-expanded', next);
+    sourcesCard.classList.toggle('expanded', next);
+    sourcesToggleLabel.textContent = next ? 'Hide' : 'Show';
+  });
+
   document.addEventListener('DOMContentLoaded', () => {
     setTimeout(performMyIP, 500);
   });
