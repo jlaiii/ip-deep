@@ -89,7 +89,7 @@
           region: d.region || '',
           country: COUNTRY_MAP[cc] || '',
           countryCode: cc,
-          continent: '',
+          continent: guessContinent(cc),
           latitude: lat, longitude: lon,
           postal: d.postal || '',
           timezone: d.timezone || '',
@@ -115,7 +115,7 @@
           hostname: d.hostname || '',
           country: cname,
           countryCode: cc,
-          continent: CONTINENT_MAP[d.continent_code] || d.continent_code || '',
+          continent: CONTINENT_MAP[d.continent_code] || d.continent_code || guessContinent(cc) || '',
           region: d.region || '',
           city: d.city || '',
           postal: d.postal_code || '',
@@ -139,26 +139,29 @@
       label: 'ip.sb',
       lookupUrl: (ip) => `https://api.ip.sb/geoip/${ip}`,
       weight: 3,
-      normalize: (d) => ({
-        ip: d.ip || '',
-        hostname: '',
-        country: d.country || '',
-        countryCode: d.country_code || '',
-        continent: CONTINENT_MAP[d.continent_code] || d.continent_code || '',
-        region: '',
-        city: '',
-        postal: '',
-        latitude: d.latitude, longitude: d.longitude,
-        timezone: d.timezone || '',
-        offset: d.offset != null ? d.offset : null,
-        isp: d.isp || '',
-        org: d.organization || '',
-        asn: d.asn ? `AS${d.asn}` : '',
-        asnOrg: d.asn_organization || '',
-        version: '',
-        currency: '', language: '',
-        anycast: null,
-      }),
+      normalize: (d) => {
+        const cc = d.country_code || '';
+        return {
+          ip: d.ip || '',
+          hostname: '',
+          country: d.country || COUNTRY_MAP[cc] || '',
+          countryCode: cc,
+          continent: CONTINENT_MAP[d.continent_code] || d.continent_code || guessContinent(cc) || '',
+          region: '',
+          city: '',
+          postal: '',
+          latitude: d.latitude, longitude: d.longitude,
+          timezone: d.timezone || '',
+          offset: d.offset != null ? d.offset : null,
+          isp: d.isp || '',
+          org: d.organization || '',
+          asn: d.asn ? `AS${d.asn}` : '',
+          asnOrg: d.asn_organization || '',
+          version: '',
+          currency: '', language: '',
+          anycast: null,
+        };
+      },
     },
   ];
 
@@ -293,6 +296,13 @@
 
     if (!mergedData) {
       throw new Error('All IP lookup services failed.\n' + attempts.map(a => `${a.label}: ${a.reason}`).join('\n'));
+    }
+
+    if (mergedData.countryCode && !mergedData.country) {
+      mergedData.country = COUNTRY_MAP[mergedData.countryCode] || '';
+    }
+    if (mergedData.countryCode && !mergedData.continent) {
+      mergedData.continent = guessContinent(mergedData.countryCode);
     }
 
     return { data: mergedData, source: primarySource, sourceLabel: primaryLabel, attempts };
