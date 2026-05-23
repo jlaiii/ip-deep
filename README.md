@@ -19,6 +19,7 @@ A fast, user-friendly IP intelligence tool that reveals deep information about a
 | Service | HTTPS | Key Required | Tier |
 |---------|-------|-------------|------|
 | [ipinfo.io](https://ipinfo.io) | ✅ | No (free tier) | Primary |
+| [ipapi.is](https://ipapi.is) | ✅ | No | Fallback |
 | [geoiplookup.io](https://geoiplookup.io) | ✅ | No | Fallback |
 | [ip.sb](https://ip.sb) | ✅ | No | Fallback |
 | [ipify.org](https://ipify.org) | ✅ | No | IP detection |

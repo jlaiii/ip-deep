@@ -103,10 +103,42 @@
       },
     },
     {
+      id: 'ipapi.is',
+      label: 'ipapi.is',
+      lookupUrl: (ip) => `https://api.ipapi.is/?ip=${ip}`,
+      normalize: (d) => {
+        const loc = d.location || {};
+        const company = d.company || {};
+        const asn = d.asn || {};
+        const cc = loc.country_code || '';
+        return {
+          ip: d.ip || '',
+          hostname: '',
+          country: loc.country || '',
+          countryCode: cc,
+          continent: loc.continent ? (CONTINENT_MAP[loc.continent] || loc.continent) : guessContinent(cc),
+          region: loc.state || '',
+          city: loc.city || '',
+          postal: loc.zip || '',
+          latitude: loc.latitude, longitude: loc.longitude,
+          timezone: loc.timezone || '',
+          offset: parseUtcOffset(loc.utcoffset),
+          isp: company.name || '',
+          org: asn.org || company.name || '',
+          asn: asn.asn ? `AS${asn.asn}` : '',
+          asnOrg: asn.descr || '',
+          version: '',
+          currency: loc.currency_code || '',
+          language: '',
+          anycast: null,
+        };
+      },
+    },
+    {
       id: 'geoiplookup.io',
       label: 'geoiplookup.io',
       lookupUrl: (ip) => `https://json.geoiplookup.io/${ip}`,
-      weight: 2,
+      weight: 3,
       normalize: (d) => {
         const cc = d.country_code || '';
         const cname = d.country_name || COUNTRY_MAP[cc] || '';
@@ -138,7 +170,7 @@
       id: 'ip.sb',
       label: 'ip.sb',
       lookupUrl: (ip) => `https://api.ip.sb/geoip/${ip}`,
-      weight: 3,
+      weight: 4,
       normalize: (d) => {
         const cc = d.country_code || '';
         return {
@@ -175,6 +207,13 @@
   }
 
   function detectIPVersion(ip) { return ip && ip.includes(':') ? 'IPv6' : 'IPv4'; }
+
+  function parseUtcOffset(str) {
+    if (!str) return null;
+    const m = str.match(/^([+-])(\d{2}):(\d{2})$/);
+    if (!m) return null;
+    return (m[1] === '+' ? 1 : -1) * (parseInt(m[2]) * 3600 + parseInt(m[3]) * 60);
+  }
 
   function formatOffset(sec) {
     if (sec == null) return '';
