@@ -146,21 +146,17 @@
         <div id="map"></div>
       </div>
 
+      <button class="sources-mini" id="sourcesToggle" aria-expanded="false">
+        <i class="fas fa-microchip"></i>
+        <span id="sourcesToggleLabel">Show data sources</span>
+      </button>
       <div class="sources-card info-card" id="sourcesCard">
-        <button class="sources-toggle" id="sourcesToggle" aria-expanded="false">
-          <span class="sources-toggle-left">
-            <i class="fas fa-layer-group"></i>
-            <span>Data Sources &amp; Fallback Chain</span>
-          </span>
-          <span class="sources-toggle-right">
-            <span class="sources-toggle-label" id="sourcesToggleLabel">Show</span>
-            <i class="fas fa-chevron-down sources-chevron"></i>
-          </span>
-        </button>
-        <div class="sources-collapse" id="sourcesCollapse">
-          <div class="sources-body" id="sourcesBody"></div>
-          <div class="sources-summary" id="sourcesSummary"></div>
+        <div class="card-header">
+          <i class="fas fa-layer-group"></i>
+          <span>Data Sources &amp; Fallback Chain</span>
         </div>
+        <div class="sources-body" id="sourcesBody"></div>
+        <div class="sources-summary" id="sourcesSummary"></div>
       </div>
     </section>
 
