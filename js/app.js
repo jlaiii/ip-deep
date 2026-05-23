@@ -135,38 +135,6 @@
       },
     },
     {
-      id: 'geoiplookup.io',
-      label: 'geoiplookup.io',
-      lookupUrl: (ip) => `https://json.geoiplookup.io/${ip}`,
-      weight: 3,
-      normalize: (d) => {
-        const cc = d.country_code || '';
-        const cname = d.country_name || COUNTRY_MAP[cc] || '';
-        return {
-          ip: d.ip || '',
-          hostname: d.hostname || '',
-          country: cname,
-          countryCode: cc,
-          continent: CONTINENT_MAP[d.continent_code] || d.continent_code || guessContinent(cc) || '',
-          region: d.region || '',
-          city: d.city || '',
-          postal: d.postal_code || '',
-          latitude: d.latitude != null ? +d.latitude : null,
-          longitude: d.longitude != null ? +d.longitude : null,
-          timezone: d.timezone_name || '',
-          offset: null,
-          isp: d.isp || '',
-          org: d.org || '',
-          asn: d.asn_number ? `AS${d.asn_number}` : (d.asn || ''),
-          asnOrg: d.asn_org || '',
-          version: '',
-          currency: d.currency_code ? `${d.currency_code} - ${d.currency_name}` : '',
-          language: d.language_name || '',
-          anycast: null,
-        };
-      },
-    },
-    {
       id: 'ip.sb',
       label: 'ip.sb',
       lookupUrl: (ip) => `https://api.ip.sb/geoip/${ip}`,
