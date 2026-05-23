@@ -2,7 +2,7 @@
 
 A fast, user-friendly IP intelligence tool that reveals deep information about any IP address. Built as a GitHub Pages site — no backend required.
 
-**Live demo:** `https://<your-username>.github.io/ip-deep/`
+**Live demo:** [`https://jlaiii.github.io/ip-deep/`](https://jlaiii.github.io/ip-deep/)
 
 ## Features
 
