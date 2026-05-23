@@ -1,7 +1,6 @@
 (function () {
   'use strict';
 
-  /* ===== DOM REFS ===== */
   const $ = (id) => document.getElementById(id);
   const ipInput = $('ipInput');
   const lookupBtn = $('lookupBtn');
@@ -47,66 +46,58 @@
   let currentResult = null;
   let pendingIp = null;
 
-  /* ===== API PROVIDERS ===== */
+  const COUNTRY_MAP = {
+    'US': 'United States', 'GB': 'United Kingdom', 'AU': 'Australia', 'DE': 'Germany',
+    'FR': 'France', 'JP': 'Japan', 'CA': 'Canada', 'BR': 'Brazil', 'IN': 'India',
+    'NL': 'Netherlands', 'FI': 'Finland', 'IT': 'Italy', 'ES': 'Spain', 'SE': 'Sweden',
+    'NO': 'Norway', 'DK': 'Denmark', 'PL': 'Poland', 'RU': 'Russia', 'CN': 'China',
+    'KR': 'South Korea', 'SG': 'Singapore', 'HK': 'Hong Kong', 'TW': 'Taiwan',
+    'ZA': 'South Africa', 'MX': 'Mexico', 'AR': 'Argentina', 'CL': 'Chile',
+    'CO': 'Colombia', 'NZ': 'New Zealand', 'IE': 'Ireland', 'CH': 'Switzerland',
+    'AT': 'Austria', 'BE': 'Belgium', 'PT': 'Portugal', 'GR': 'Greece',
+    'CZ': 'Czech Republic', 'HU': 'Hungary', 'RO': 'Romania', 'UA': 'Ukraine',
+    'IL': 'Israel', 'AE': 'United Arab Emirates', 'SA': 'Saudi Arabia',
+    'TR': 'Turkey', 'TH': 'Thailand', 'VN': 'Vietnam', 'ID': 'Indonesia',
+    'MY': 'Malaysia', 'PH': 'Philippines', 'EG': 'Egypt', 'NG': 'Nigeria',
+    'KE': 'Kenya', 'IR': 'Iran', 'PK': 'Pakistan', 'BD': 'Bangladesh',
+  };
+
+  const CONTINENT_MAP = {
+    AF: 'Africa', AN: 'Antarctica', AS: 'Asia', EU: 'Europe',
+    NA: 'North America', OC: 'Oceania', SA: 'South America',
+  };
+
   const PROVIDERS = [
-    {
-      id: 'ip.sb',
-      label: 'ip.sb',
-      lookupUrl: (ip) => `https://api.ip.sb/geoip/${ip}`,
-      selfUrl: 'https://api.ip.sb/geoip',
-      normalize: (d) => ({
-        ip: d.ip || '',
-        country: d.country || '',
-        countryCode: d.country_code || '',
-        continent: decodeContinent(d.continent_code) || d.continent_code || '',
-        latitude: d.latitude,
-        longitude: d.longitude,
-        timezone: d.timezone || '',
-        offset: d.offset != null ? d.offset : null,
-        asn: d.asn ? `AS${d.asn}` : '',
-        asnOrg: d.asn_organization || '',
-        org: d.organization || '',
-        isp: d.isp || '',
-        hostname: '',
-        city: '',
-        region: '',
-        postal: '',
-        version: '',
-        currency: '',
-        language: '',
-        anycast: null,
-      }),
-    },
     {
       id: 'ipinfo.io',
       label: 'ipinfo.io',
       lookupUrl: (ip) => `https://ipinfo.io/${ip}/json`,
-      selfUrl: 'https://ipinfo.io/json',
+      weight: 1,
       normalize: (d) => {
         let lat = null, lon = null;
         if (d.loc) { const p = d.loc.split(','); lat = parseFloat(p[0]); lon = parseFloat(p[1]); }
         let asn = '', asnOrg = '';
-        if (d.org) { const m = d.org.match(/^AS(\d+)\s+(.+)/); if (m) { asn = `AS${m[1]}`; asnOrg = m[2]; } else asnOrg = d.org; }
+        if (d.org) {
+          const m = d.org.match(/^AS(\d+)\s+(.+)/);
+          if (m) { asn = `AS${m[1]}`; asnOrg = m[2]; } else { asnOrg = d.org; }
+        }
+        const cc = d.country || '';
         return {
           ip: d.ip || '',
           hostname: d.hostname || '',
           city: d.city || '',
           region: d.region || '',
-          country: '',
-          countryCode: d.country || '',
+          country: COUNTRY_MAP[cc] || '',
+          countryCode: cc,
           continent: '',
-          latitude: lat,
-          longitude: lon,
+          latitude: lat, longitude: lon,
           postal: d.postal || '',
           timezone: d.timezone || '',
           offset: null,
           isp: '',
-          org: asnOrg,
-          asn,
-          asnOrg,
+          org: asnOrg, asn, asnOrg,
           version: '',
-          currency: '',
-          language: '',
+          currency: '', language: '',
           anycast: d.anycast != null ? d.anycast : null,
         };
       },
@@ -115,49 +106,72 @@
       id: 'geoiplookup.io',
       label: 'geoiplookup.io',
       lookupUrl: (ip) => `https://json.geoiplookup.io/${ip}`,
-      selfUrl: null,
+      weight: 2,
+      normalize: (d) => {
+        const cc = d.country_code || '';
+        const cname = d.country_name || COUNTRY_MAP[cc] || '';
+        return {
+          ip: d.ip || '',
+          hostname: d.hostname || '',
+          country: cname,
+          countryCode: cc,
+          continent: CONTINENT_MAP[d.continent_code] || d.continent_code || '',
+          region: d.region || '',
+          city: d.city || '',
+          postal: d.postal_code || '',
+          latitude: d.latitude != null ? +d.latitude : null,
+          longitude: d.longitude != null ? +d.longitude : null,
+          timezone: d.timezone_name || '',
+          offset: null,
+          isp: d.isp || '',
+          org: d.org || '',
+          asn: d.asn_number ? `AS${d.asn_number}` : (d.asn || ''),
+          asnOrg: d.asn_org || '',
+          version: '',
+          currency: d.currency_code ? `${d.currency_code} - ${d.currency_name}` : '',
+          language: d.language_name || '',
+          anycast: null,
+        };
+      },
+    },
+    {
+      id: 'ip.sb',
+      label: 'ip.sb',
+      lookupUrl: (ip) => `https://api.ip.sb/geoip/${ip}`,
+      weight: 3,
       normalize: (d) => ({
         ip: d.ip || '',
-        hostname: d.hostname || '',
-        country: d.country_name || '',
+        hostname: '',
+        country: d.country || '',
         countryCode: d.country_code || '',
-        continent: decodeContinent(d.continent_code) || d.continent_code || '',
-        region: d.region || '',
-        city: d.city || '',
-        postal: d.postal_code || '',
-        latitude: d.latitude != null ? parseFloat(d.latitude) : null,
-        longitude: d.longitude != null ? parseFloat(d.longitude) : null,
-        timezone: d.timezone_name || '',
-        offset: null,
+        continent: CONTINENT_MAP[d.continent_code] || d.continent_code || '',
+        region: '',
+        city: '',
+        postal: '',
+        latitude: d.latitude, longitude: d.longitude,
+        timezone: d.timezone || '',
+        offset: d.offset != null ? d.offset : null,
         isp: d.isp || '',
-        org: d.org || '',
-        asn: d.asn_number ? `AS${d.asn_number}` : (d.asn || ''),
-        asnOrg: d.asn_org || '',
+        org: d.organization || '',
+        asn: d.asn ? `AS${d.asn}` : '',
+        asnOrg: d.asn_organization || '',
         version: '',
-        currency: d.currency_code ? `${d.currency_code} - ${d.currency_name}` : '',
-        language: d.language_name || '',
+        currency: '', language: '',
         anycast: null,
       }),
     },
   ];
 
-  function decodeContinent(code) {
-    const map = { AF: 'Africa', AN: 'Antarctica', AS: 'Asia', EU: 'Europe', NA: 'North America', OC: 'Oceania', SA: 'South America' };
-    return map[code] || '';
-  }
-
-  /* ===== UTILITY ===== */
   function isValidIP(str) {
     if (!str || !str.trim()) return false;
+    const s = str.trim();
     const ipv4 = /^(\d{1,3}\.){3}\d{1,3}$/;
-    if (ipv4.test(str.trim())) return str.trim().split('.').every(n => +n >= 0 && +n <= 255);
+    if (ipv4.test(s)) return s.split('.').every(n => +n >= 0 && +n <= 255);
     const ipv6 = /^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$/;
-    return ipv6.test(str.trim());
+    return ipv6.test(s);
   }
 
-  function detectIPVersion(ip) {
-    return ip.includes(':') ? 'IPv6' : 'IPv4';
-  }
+  function detectIPVersion(ip) { return ip && ip.includes(':') ? 'IPv6' : 'IPv4'; }
 
   function formatOffset(sec) {
     if (sec == null) return '';
@@ -176,38 +190,63 @@
     } catch { return ''; }
   }
 
-  /* ===== UI HELPERS ===== */
-  function showStatus(msg) { statusMsg.textContent = msg; statusSection.classList.add('visible'); resultsSection.classList.remove('visible'); errorSection.classList.remove('visible'); }
-  function hideStatus() { statusSection.classList.remove('visible'); }
+  function showStatus(msg) { statusMsg.innerHTML = msg; statusSection.classList.add('visible'); resultsSection.classList.remove('visible'); errorSection.classList.remove('visible'); }
   function showError(title, msg) { errorTitle.textContent = title; errorMsg.textContent = msg; errorSection.classList.add('visible'); resultsSection.classList.remove('visible'); statusSection.classList.remove('visible'); }
   function setLoading(l) { spinner.style.display = l ? 'block' : 'none'; lookupBtn.disabled = l; lookupBtn.style.opacity = l ? '0.6' : ''; }
 
   function showToast(msg) {
     let t = document.querySelector('.toast');
-    if (!t) {
-      t = document.createElement('div'); t.className = 'toast';
-      document.body.appendChild(t);
-    }
+    if (!t) { t = document.createElement('div'); t.className = 'toast'; document.body.appendChild(t); }
     t.textContent = msg;
-    requestAnimationFrame(() => { t.classList.add('visible'); });
+    requestAnimationFrame(() => t.classList.add('visible'));
     clearTimeout(t._hide);
     t._hide = setTimeout(() => t.classList.remove('visible'), 2500);
   }
 
-  /* ===== FETCH WITH TIMEOUT ===== */
   async function fetchWithTimeout(url, ms = 8000) {
     const ctrl = new AbortController();
     const id = setTimeout(() => ctrl.abort(), ms);
     try {
-      const r = await fetch(url, { signal: ctrl.signal, headers: { 'Accept': 'application/json' } });
-      return r;
+      return await fetch(url, { signal: ctrl.signal, headers: { 'Accept': 'application/json' } });
     } finally { clearTimeout(id); }
   }
 
-  /* ===== CORE LOOKUP ===== */
+  function mergeData(base, extra) {
+    const r = { ...base };
+    for (const k of Object.keys(r)) {
+      if (k === 'anycast') continue;
+      if (!r[k] && extra[k]) { r[k] = extra[k]; }
+    }
+    if (r.countryCode && !r.country) { r.country = COUNTRY_MAP[r.countryCode] || ''; }
+    if (r.countryCode && !r.continent) { r.continent = guessContinent(r.countryCode); }
+    return r;
+  }
+
+  function guessContinent(cc) {
+    const map = {
+      US: 'North America', CA: 'North America', MX: 'North America',
+      GB: 'Europe', DE: 'Europe', FR: 'Europe', IT: 'Europe', ES: 'Europe',
+      NL: 'Europe', BE: 'Europe', CH: 'Europe', AT: 'Europe', SE: 'Europe',
+      NO: 'Europe', DK: 'Europe', FI: 'Europe', PL: 'Europe', RU: 'Europe',
+      UA: 'Europe', IE: 'Europe', PT: 'Europe', GR: 'Europe', CZ: 'Europe',
+      HU: 'Europe', RO: 'Europe', TR: 'Europe',
+      AU: 'Oceania', NZ: 'Oceania',
+      JP: 'Asia', CN: 'Asia', KR: 'Asia', IN: 'Asia', SG: 'Asia',
+      HK: 'Asia', TW: 'Asia', IL: 'Asia', AE: 'Asia', SA: 'Asia',
+      TH: 'Asia', VN: 'Asia', ID: 'Asia', MY: 'Asia', PH: 'Asia',
+      BR: 'South America', AR: 'South America', CL: 'South America', CO: 'South America',
+      ZA: 'Africa', NG: 'Africa', KE: 'Africa', EG: 'Africa',
+    };
+    return map[cc] || '';
+  }
+
   async function lookupIP(ip) {
     const attempts = [];
-    for (const p of PROVIDERS) {
+    let mergedData = null;
+    let primarySource = '';
+    let primaryLabel = '';
+
+    const promises = PROVIDERS.map(async (p) => {
       const attempt = { id: p.id, label: p.label, status: 'pending', latency: null, reason: '' };
       const start = performance.now();
       try {
@@ -217,52 +256,58 @@
         if (!res.ok) {
           attempt.status = 'failed';
           attempt.reason = `HTTP ${res.status}`;
-          attempts.push(attempt);
-          continue;
+          return attempt;
         }
         const json = await res.json();
         if (!json || json.status === 'error' || json.success === false) {
           attempt.status = 'failed';
           attempt.reason = 'bad response';
-          attempts.push(attempt);
-          continue;
+          return attempt;
         }
+        const data = p.normalize(json);
         attempt.status = 'used';
-        attempts.push(attempt);
-        return { data: p.normalize(json), source: p.id, sourceLabel: p.label, attempts };
+        attempt._data = data;
+
+        if (!mergedData) {
+          mergedData = { ...data };
+          primarySource = p.id;
+          primaryLabel = p.label;
+        } else {
+          mergedData = mergeData(mergedData, data);
+        }
+        return attempt;
       } catch (e) {
         attempt.latency = Math.round(performance.now() - start);
         attempt.status = 'failed';
         attempt.reason = e.name === 'AbortError' ? 'timeout' : (e.message || 'error');
-        attempts.push(attempt);
-        continue;
+        return attempt;
+      }
+    });
+
+    const settled = await Promise.allSettled(promises);
+    for (const s of settled) {
+      if (s.status === 'fulfilled' && s.value) {
+        attempts.push({ id: s.value.id, label: s.value.label, status: s.value.status, latency: s.value.latency, reason: s.value.reason });
       }
     }
-    throw new Error('All IP lookup services failed.\n' + attempts.map(a => `${a.label}: ${a.reason}`).join('\n'));
+
+    if (!mergedData) {
+      throw new Error('All IP lookup services failed.\n' + attempts.map(a => `${a.label}: ${a.reason}`).join('\n'));
+    }
+
+    return { data: mergedData, source: primarySource, sourceLabel: primaryLabel, attempts };
   }
 
   async function detectOwnIP() {
     const endpoints = [
-      async () => {
-        const r = await fetchWithTimeout('https://api.ipify.org?format=json');
-        if (!r.ok) throw new Error('ipify HTTP ' + r.status);
-        const j = await r.json();
-        return j.ip;
-      },
-      async () => {
-        const r = await fetchWithTimeout('https://api.ip.sb/geoip');
-        if (!r.ok) throw new Error('ip.sb self HTTP ' + r.status);
-        const j = await r.json();
-        return j.ip;
-      },
+      async () => { const r = await fetchWithTimeout('https://api.ipify.org?format=json'); if (!r.ok) throw new Error('ipify HTTP ' + r.status); return (await r.json()).ip; },
+      async () => { const r = await fetchWithTimeout('https://api.ip.sb/geoip'); if (!r.ok) throw new Error('ip.sb self HTTP ' + r.status); return (await r.json()).ip; },
+      async () => { const r = await fetchWithTimeout('https://ipinfo.io/json'); if (!r.ok) throw new Error('ipinfo HTTP ' + r.status); return (await r.json()).ip; },
     ];
-    for (const fn of endpoints) {
-      try { return await fn(); } catch { continue; }
-    }
+    for (const fn of endpoints) { try { return await fn(); } catch { continue; } }
     throw new Error('Could not detect your IP address');
   }
 
-  /* ===== RENDER SOURCES CHAIN ===== */
   function renderSources(attempts, usedId) {
     const container = $('sourcesBody');
     const summary = $('sourcesSummary');
@@ -271,27 +316,26 @@
     let html = '<div class="sources-chain">';
 
     attempts.forEach((a, i) => {
-      let icon, cls, label;
+      let icon, cls, desc;
       if (a.status === 'used') {
-        icon = 'fa-check-circle';
-        cls = 'source-used';
-        label = 'Used for this lookup';
+        icon = 'fa-check-circle'; cls = 'source-used';
+        desc = a.id === usedId ? 'Served this lookup' : 'Available (backup data)';
       } else if (a.status === 'failed') {
-        icon = 'fa-times-circle';
-        cls = 'source-failed';
-        label = a.reason ? `Failed: ${a.reason}` : 'Unavailable';
+        icon = 'fa-times-circle'; cls = 'source-failed';
+        desc = a.reason ? `Failed: ${a.reason}` : 'Unavailable';
       } else {
-        icon = 'fa-circle';
-        cls = 'source-pending';
-        label = 'Available (fallback)';
+        icon = 'fa-circle'; cls = 'source-pending';
+        desc = 'Available (fallback)';
       }
-      const lat = a.latency != null ? `<span class="source-latency">${a.latency}ms</span>` : '<span class="source-latency source-latency-na">—</span>';
+      const lat = a.latency != null
+        ? `<span class="source-latency">${a.latency}ms</span>`
+        : '<span class="source-latency source-latency-na">—</span>';
       html += `
         <div class="source-item ${cls}">
           <div class="source-status-icon"><i class="fas ${icon}"></i></div>
           <div class="source-info">
             <span class="source-name">${a.label}</span>
-            <span class="source-desc">${label}</span>
+            <span class="source-desc">${desc}</span>
           </div>
           ${lat}
         </div>`;
@@ -302,21 +346,25 @@
 
     html += '</div>';
 
-    if (failed.length > 0 && used) {
-      summary.innerHTML = `<i class="fas fa-exclamation-triangle"></i> <strong>${failed[0].label}</strong> was unavailable (${failed[0].reason}). Auto-failed over to <strong>${used.label}</strong>.`;
-      summary.className = 'sources-summary sources-summary-warn';
-    } else if (failed.length > 0) {
-      summary.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${failed.length} source(s) unavailable. Using <strong>${used ? used.label : 'last available'}</strong>.`;
+    const allFailed = attempts.filter(a => a.status === 'failed');
+    const allUsed = attempts.filter(a => a.status === 'used');
+
+    if (allFailed.length === 0) {
+      summary.innerHTML = `<i class="fas fa-check-circle"></i> All sources operational. Primary: <strong>${used ? used.label : ''}</strong>`;
+      summary.className = 'sources-summary sources-summary-ok';
+    } else if (allUsed.length > 0) {
+      const failList = allFailed.map(f => f.label).join(', ');
+      const usedName = used ? used.label : '';
+      summary.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${failList} unavailable. Using <strong>${usedName}</strong>${allUsed.length > 1 ? ' (with backup data from ' + allUsed.filter(u => u.id !== usedId).map(u => u.label).join(', ') + ')' : ''}.`;
       summary.className = 'sources-summary sources-summary-warn';
     } else {
-      summary.innerHTML = `<i class="fas fa-check-circle"></i> All sources operational. Primary: <strong>${used ? used.label : attempts[0].label}</strong>`;
-      summary.className = 'sources-summary sources-summary-ok';
+      summary.innerHTML = `<i class="fas fa-exclamation-triangle"></i> All sources unavailable.`;
+      summary.className = 'sources-summary sources-summary-warn';
     }
 
     container.innerHTML = html;
   }
 
-  /* ===== RENDER RESULTS ===== */
   function renderResults(result, ip) {
     currentResult = result;
     const d = result.data;
@@ -351,18 +399,15 @@
 
     sourceName.textContent = result.sourceLabel;
 
-    if (result.attempts) {
-      renderSources(result.attempts, result.source);
-    }
+    if (result.attempts) renderSources(result.attempts, result.source);
 
     resultsSection.classList.add('visible');
     statusSection.classList.remove('visible');
     errorSection.classList.remove('visible');
 
-    updateMap(d.latitude, d.longitude, d.ip || ip, d.city || d.region || '');
+    updateMap(d.latitude, d.longitude, d.ip || ip, [d.city, d.region].filter(Boolean).join(', '));
   }
 
-  /* ===== MAP ===== */
   function updateMap(lat, lon, ip, location) {
     const mapContainer = $('mapContainer');
     if (lat == null || lon == null) { mapContainer.style.display = 'none'; return; }
@@ -370,9 +415,7 @@
 
     if (!map) {
       map = L.map('map', { zoomControl: true, attributionControl: false }).setView([lat, lon], 10);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 18,
-      }).addTo(map);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
     } else {
       map.setView([lat, lon], 10);
     }
@@ -386,15 +429,14 @@
     setTimeout(() => map.invalidateSize(), 300);
   }
 
-  /* ===== MAIN ACTIONS ===== */
   async function performLookup(ip) {
     ip = ip.trim();
     if (!isValidIP(ip)) {
-      showError('Invalid IP Address', `"${ip}" doesn't look like a valid IPv4 or IPv6 address. Please check and try again.`);
+      showError('Invalid IP Address', `"${ip}" doesn't look like a valid IPv4 or IPv6 address.`);
       return;
     }
 
-    showStatus(`Looking up <strong>${ip}</strong>...`);
+    showStatus(`Looking up <strong>${escapeHtml(ip)}</strong>...`);
     setLoading(true);
     pendingIp = ip;
 
@@ -410,10 +452,15 @@
     }
   }
 
+  function escapeHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
   async function performMyIP() {
     showStatus('Detecting your IP address...');
     setLoading(true);
-
     try {
       const ip = await detectOwnIP();
       ipInput.value = ip;
@@ -425,7 +472,6 @@
     }
   }
 
-  /* ===== EVENT LISTENERS ===== */
   lookupBtn.addEventListener('click', () => {
     const val = ipInput.value.trim();
     if (!val) { showToast('Please enter an IP address'); ipInput.focus(); return; }
@@ -448,9 +494,7 @@
     if (!ip || ip === '--') return;
     if (navigator.clipboard) {
       navigator.clipboard.writeText(ip).then(() => showToast('Copied to clipboard')).catch(() => fallbackCopy(ip));
-    } else {
-      fallbackCopy(ip);
-    }
+    } else { fallbackCopy(ip); }
   });
 
   function fallbackCopy(text) {
@@ -468,7 +512,6 @@
     });
   });
 
-  /* ===== AUTO LOAD ===== */
   document.addEventListener('DOMContentLoaded', () => {
     setTimeout(performMyIP, 500);
   });

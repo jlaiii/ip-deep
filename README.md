@@ -18,12 +18,12 @@ A fast, user-friendly IP intelligence tool that reveals deep information about a
 
 | Service | HTTPS | Key Required | Tier |
 |---------|-------|-------------|------|
-| [ip.sb](https://ip.sb) | ✅ | No | Primary |
-| [ipinfo.io](https://ipinfo.io) | ✅ | No (free tier) | Fallback |
+| [ipinfo.io](https://ipinfo.io) | ✅ | No (free tier) | Primary |
 | [geoiplookup.io](https://geoiplookup.io) | ✅ | No | Fallback |
+| [ip.sb](https://ip.sb) | ✅ | No | Fallback |
 | [ipify.org](https://ipify.org) | ✅ | No | IP detection |
 
-If the primary API is unreachable or rate-limited, the next one is tried automatically.
+All APIs are queried **in parallel** for speed. Data is **merged** across all successful responses so you get the most complete result. If one API is unreachable or rate-limited, results from the others fill the gaps automatically.
 
 ## Local Development
 
